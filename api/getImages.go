@@ -1,14 +1,14 @@
 package api
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/matba/slyde-server/internals/cacher"
 )
 
-func Welcome(w http.ResponseWriter, r *http.Request) {
+func GetImages(w http.ResponseWriter, r *http.Request) {
 	// We can obtain the session token from the requests cookies, which come with every request
 	c, err := r.Cookie("session_token")
 	if err != nil {
@@ -28,9 +28,25 @@ func Welcome(w http.ResponseWriter, r *http.Request) {
 	response, err := cacher.GetCache().GetKeyValue(sessionToken)
 	if err != nil {
 		// If there is an error fetching from cache, return an internal server error status
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Cannot find a session token %q in cache. %q", sessionToken, err)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	// Finally, return the welcome message to the user
-	w.Write([]byte(fmt.Sprintf("Welcome %s!", response)))
+
+	if response == "" {
+		// If there is an error fetching from cache, return an internal server error status
+		log.Printf("Cannot find a session token %q in cache. %q", sessionToken, err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	returnImages := images{ImageList: []string{"http://ls3.rnet.ryerson.ca/people/mahdi/images/my_picture.jpg"}}
+
+	js, err := json.Marshal(returnImages)
+	if err != nil {
+		log.Printf("Cannot convert images object to json %q", err)
+		WriteErrorOnResponse("Cannot cannot convert the result to JSON.", &w, http.StatusInternalServerError)
+		return
+	}
+	w.Write(js)
 }

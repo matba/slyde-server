@@ -31,6 +31,6 @@ func (c *controllerInstance) Start() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/signup", SignUp)
 	router.HandleFunc("/signin", Signin)
-	router.HandleFunc("/welcome", Welcome)
+	router.HandleFunc("/images", GetImages)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

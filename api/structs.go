@@ -9,3 +9,7 @@ type credentials struct {
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
+
+type images struct {
+	ImageList []string `json:"imageUrls"`
+}
