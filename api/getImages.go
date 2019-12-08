@@ -40,7 +40,8 @@ func GetImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	returnImages := images{ImageList: []string{"http://ls3.rnet.ryerson.ca/people/mahdi/images/my_picture.jpg"}}
+	returnImages := images{ImageList: []string{"http://ls3.rnet.ryerson.ca/people/mahdi/images/my_picture.jpg",
+		"http://ls3.rnet.ryerson.ca/wp-content/uploads/2013/01/mtacceexterior1.jpg"}}
 
 	js, err := json.Marshal(returnImages)
 	if err != nil {
