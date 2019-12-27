@@ -1,8 +1,6 @@
 package cacher
 
 import (
-	"errors"
-
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -38,8 +36,13 @@ func (c *redisCache) GetKeyValue(key string) (string, error) {
 	}
 
 	if response == nil {
-		return "", errors.New("user session cannot be found")
+		return "", NotFound
 	}
 
 	return string(response.([]byte)), err
+}
+
+func (c *redisCache) DeleteKey(key string) error {
+	_, err := c.cache.Do("DEL", key)
+	return err
 }

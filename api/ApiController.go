@@ -29,8 +29,13 @@ func (c *controllerInstance) Start() {
 	c.active = true
 
 	router := mux.NewRouter().StrictSlash(true)
+	// the endpoint for registering new users
 	router.HandleFunc("/signup", SignUp)
+	// the endpoint for verifying email for new users
+	router.HandleFunc("/verify", VerifyEmail)
+	// the endpoint for sigining in
 	router.HandleFunc("/signin", Signin)
-	router.HandleFunc("/images", GetImages)
+	// the end point for for getting uploaded images
+	router.HandleFunc("/images", HandleImage)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

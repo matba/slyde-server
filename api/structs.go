@@ -10,6 +10,26 @@ type credentials struct {
 	Email    string `json:"email"`
 }
 
+type signupRequest struct {
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+}
+
+type signupResponse struct {
+	AlreadyRequested bool `json:"alreadyRequested"`
+}
+
+type verifyRequest struct {
+	Email            string `json:"email"`
+	VerificationCode string `json:"code"`
+}
+
+type image struct {
+	ID      string `json:"id"`
+	Address string `json:"address"`
+}
+
 type images struct {
-	ImageList []string `json:"imageUrls"`
+	ImageList []image `json:"images"`
 }

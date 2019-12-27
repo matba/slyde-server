@@ -1,61 +1,68 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/matba/slyde-server/internals/cacher"
-	"github.com/matba/slyde-server/internals/db"
 	"github.com/matba/slyde-server/internals/utils"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
+const signinSerivce = "SIGN_IN"
+const signInTriesCacheKey = "SIGNIN_TRIES_"
+const signInSessionCacheKey = "SIGNIN_KEY_"
+
+// Signin handles API calls for signing in
 func Signin(w http.ResponseWriter, r *http.Request) {
-	var creds credentials
+	var request credentials
 	// Get the JSON body and decode into credentials
-	err := json.NewDecoder(r.Body).Decode(&creds)
+	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		log.Printf("Cannot decode the body of request %q", r.Body)
-		// If the structure of the body is wrong, return an HTTP error
-		w.WriteHeader(http.StatusBadRequest)
+		log.Printf(errLogTemplate, errLogCannotDecode, signinSerivce, "", err.Error())
+		WriteErrorOnResponse(errCannotDecode, &w, http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Incoming login request for : %q", creds.Email)
+	log.Printf("Incoming login request for : %q", request.Email)
 
-	client, err := db.CreateMongoClient()
-	defer db.CloseClient(client)
-	if err != nil {
-		log.Printf("Cannot connect to db %q", err)
-		WriteErrorOnResponse("Cannot connect to db.", &w, http.StatusInternalServerError)
+	triesNo := 0
+	tries, err := cacher.GetCache().GetKeyValue(signInTriesCacheKey + strings.ToLower(request.Email))
+	if err == nil {
+		triesNo, _ = strconv.Atoi(tries)
+		if triesNo > 2 {
+			log.Printf(errLogTemplate, errLogTooManyTries, signinSerivce, request.Email, tries)
+			WriteErrorOnResponse(errTooMayTries, &w, http.StatusBadRequest)
+			return
+		}
+	}
+	if err != nil && err != cacher.NotFound {
+		log.Printf(errLogTemplate, errLogCacheFailure, signinSerivce, request.Email, err.Error())
+		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
 		return
 	}
 
-	collection := (*client).Database("slyde").Collection("users")
-
-	filter := bson.D{{"email", creds.Email}}
-	var matchUser db.User
-	err = collection.FindOne(context.TODO(), filter).Decode(&matchUser)
+	matchUser, err := GetUserByEmail(w, request.Email, signinSerivce)
 	if err != nil {
-		log.Printf("Cannot get the info for user %q with error %q", creds.Email, err)
-		WriteErrorOnResponse("Cannot retrieve user info.", &w, http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("User %q found verifying passwords", creds.Email)
+	log.Printf("User %q found verifying passwords", request.Email)
 
-	ok := utils.ComparePasswords(matchUser.SecurityInfo.Password, creds.Password)
+	ok := utils.ComparePasswords(matchUser.SecurityInfo.Password, request.Password)
 
 	// If a password exists for the given user
 	// AND, if it is the same as the password we received, the we can move ahead
 	// if NOT, then we return an "Unauthorized" status
 	if !ok {
-		log.Printf("Unsuccessful authorization for user %q", creds.Email)
-		w.WriteHeader(http.StatusUnauthorized)
+		cacher.GetCache().AddKeyValue(signInTriesCacheKey+strings.ToLower(request.Email),
+			strconv.Itoa(triesNo+1), twelveHours)
+		log.Printf(errLogTemplate, errLogWrongCredentials, signinSerivce, request.Email, "")
+		WriteErrorOnResponse(errFailedLogin, &w, http.StatusUnauthorized)
 		return
 	}
 
@@ -64,21 +71,18 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 	sessionToken := sessionToken1.String()
 	// Set the token in the cache, along with the user whom it represents
 	// The token has an expiry time of 24 hours
-	var timeoutSeconds int
-	timeoutSeconds = 60 * 60 * 24
-	err = cacher.GetCache().AddKeyValue(sessionToken, creds.Email, timeoutSeconds)
+	err = cacher.GetCache().AddKeyValue(signInSessionCacheKey+sessionToken, request.Email, oneEightyDays)
 	if err != nil {
-		// If there is an error in setting the cache, return an internal server error
-		log.Printf("exception occured while saving the user session cookie in cache: %q", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf(errLogTemplate, errLogCacheFailure, signinSerivce, request.Email, err.Error())
+		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
 		return
 	}
 
 	// Finally, we set the client cookie for "session_token" as the session token we just generated
 	// we also set an expiry time the same as the cache
 	http.SetCookie(w, &http.Cookie{
-		Name:    "session_token",
+		Name:    sessionTokenKey,
 		Value:   sessionToken,
-		Expires: time.Now().Add(time.Duration(timeoutSeconds) * time.Second),
+		Expires: time.Now().Add(time.Duration(oneEightyDays) * time.Second),
 	})
 }
