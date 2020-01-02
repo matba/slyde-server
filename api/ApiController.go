@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 )
@@ -26,6 +27,18 @@ func (c *controllerInstance) IsActive() bool {
 }
 
 func (c *controllerInstance) Start() {
+	// check if upload image directory exists
+	if _, err := os.Stat(filesDirectory); os.IsNotExist(err) {
+		log.Fatal("The files directory does not exist: " + filesDirectory)
+	}
+
+	if _, err := os.Stat(filesDirectory + userDirectory); os.IsNotExist(err) {
+		err := os.Mkdir(filesDirectory+userDirectory, 0777)
+		if err != nil {
+			log.Fatal("The files directory does not have proper permissions: " + filesDirectory)
+		}
+	}
+
 	c.active = true
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -37,5 +50,7 @@ func (c *controllerInstance) Start() {
 	router.HandleFunc("/signin", Signin)
 	// the end point for for getting uploaded images
 	router.HandleFunc("/images", HandleImage)
+	// the end point for for getting user information
+	router.HandleFunc("/user", HandleUser)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

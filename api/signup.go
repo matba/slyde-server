@@ -28,7 +28,7 @@ const registrationTriesCacheKey = "REGISTRATION_TRIES_"
 
 // SignUp Rest API handler for sign up
 func SignUp(w http.ResponseWriter, r *http.Request) {
-	setJsonContentType(w)
+	SetJsonContentType(w)
 
 	// the object for keeping the request in serialized form
 	var serializedRequest string
@@ -123,7 +123,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 
 // VerifyEmail Rest API handler for verifying the email
 func VerifyEmail(w http.ResponseWriter, r *http.Request) {
-	setJsonContentType(w)
+	SetJsonContentType(w)
 	var request verifyRequest
 	// Get the JSON body and decode into verify request
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -216,7 +216,7 @@ func VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		Name:         signupReq.Name,
 		CreationDate: time.Now(),
 		ImageQuota:   10,
-		QuotaUsed:    0,
+		Images:       []db.ImageInfo{},
 	}
 
 	//get the client
@@ -282,8 +282,4 @@ func validateSignupRequest(info signupRequest) error {
 	}
 
 	return nil
-}
-
-func setJsonContentType(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
 }

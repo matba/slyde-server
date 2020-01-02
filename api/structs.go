@@ -25,11 +25,24 @@ type verifyRequest struct {
 	VerificationCode string `json:"code"`
 }
 
-type image struct {
-	ID      string `json:"id"`
-	Address string `json:"address"`
+type userInformation struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
-type images struct {
-	ImageList []image `json:"images"`
+type UserImage struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type UserImages struct {
+	ImageList []UserImage `json:"images"`
+}
+
+type ImageDeleteRequest struct {
+	ImageIds []string `json:"images"`
+}
+
+type ImageDeleteResponse struct {
+	NumberDeleted int `json:"deleted"`
 }

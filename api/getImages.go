@@ -13,9 +13,9 @@ func GetImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	returnImages := images{ImageList: []image{
-		image{"test1", "http://ls3.rnet.ryerson.ca/people/mahdi/images/my_picture.jpg"},
-		image{"test2", "http://ls3.rnet.ryerson.ca/wp-content/uploads/2013/01/mtacceexterior1.jpg"}}}
+	returnImages := UserImages{ImageList: []UserImage{
+		UserImage{"test1", "image1"},
+		UserImage{"test2", "image2"}}}
 
 	js, err := json.Marshal(returnImages)
 	if err != nil {

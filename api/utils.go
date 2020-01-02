@@ -15,14 +15,14 @@ import (
 
 const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+func SetJsonContentType(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+}
+
 func WriteErrorOnResponse(error string, w *http.ResponseWriter, status int) {
 	(*w).WriteHeader(http.StatusInternalServerError)
 	errorResp := errorResponse{Description: error}
-	js, err := json.Marshal(errorResp)
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	js, _ := json.Marshal(errorResp)
 	(*w).Write(js)
 }
 
@@ -77,7 +77,7 @@ func GetUserByEmail(w http.ResponseWriter, email string, serviceName string) (*d
 	client, err := db.CreateMongoClient()
 	defer db.CloseClient(client)
 	if err != nil {
-		log.Printf(errLogTemplate, errLogCannotConnectToDb, serviceName, emailBody, err.Error())
+		log.Printf(errLogTemplate, errLogCannotConnectToDb, serviceName, email, err.Error())
 		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
 		return nil, err
 	}

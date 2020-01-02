@@ -14,5 +14,15 @@ type User struct {
 	Name         string
 	CreationDate time.Time
 	ImageQuota   int
-	QuotaUsed    int
+	Images       []ImageInfo
+}
+
+// ImageInfo keeps information about an uploaded image
+type ImageInfo struct {
+	ID         string
+	Width      int
+	Height     int
+	Size       int
+	UploadDate time.Time
+	Name       string
 }

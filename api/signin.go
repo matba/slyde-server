@@ -19,6 +19,7 @@ const signInSessionCacheKey = "SIGNIN_KEY_"
 
 // Signin handles API calls for signing in
 func Signin(w http.ResponseWriter, r *http.Request) {
+	SetJsonContentType(w)
 	var request credentials
 	// Get the JSON body and decode into credentials
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -85,4 +86,10 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 		Value:   sessionToken,
 		Expires: time.Now().Add(time.Duration(oneEightyDays) * time.Second),
 	})
+
+	js, _ := json.Marshal(userInformation{
+		Email: matchUser.Email,
+		Name:  matchUser.Name,
+	})
+	w.Write(js)
 }
