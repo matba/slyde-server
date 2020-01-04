@@ -93,3 +93,23 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 	})
 	w.Write(js)
 }
+
+func Signout(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Incoming call for signing out")
+	// We can obtain the session token from the requests cookies, which come with every request
+	c, err := r.Cookie(sessionTokenKey)
+	if err != nil {
+		log.Printf("Error while getting cookie")
+		return
+	}
+	sessionToken := c.Value
+
+	// We then get the name of the user from our cache, where we set the session token
+	err = cacher.GetCache().DeleteKey(signInSessionCacheKey + sessionToken)
+	if err != nil {
+		log.Printf("Error while deleting the cache key")
+	}
+
+	log.Printf("Successfully signed out")
+	return
+}

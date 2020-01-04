@@ -48,6 +48,8 @@ func (c *controllerInstance) Start() {
 	router.HandleFunc("/verify", VerifyEmail)
 	// the endpoint for sigining in
 	router.HandleFunc("/signin", Signin)
+	// the endpoint for signing out
+	router.HandleFunc("/signout", Signout)
 	// the end point for for getting uploaded images
 	router.HandleFunc("/images", HandleImage)
 	// the end point for for getting user information

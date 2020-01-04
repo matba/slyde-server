@@ -31,8 +31,10 @@ type userInformation struct {
 }
 
 type UserImage struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Width  uint   `json:"width"`
+	Height uint   `json:"height"`
 }
 
 type UserImages struct {

@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  name = "github.com/disintegration/imaging"
+  packages = ["."]
+  revision = "acabd8315e63bfcaac97d52d68a7a0b88d2eea93"
+  version = "v1.6.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/edwvee/exiffix"
+  packages = ["."]
+  revision = "16aac9658f2343f276c5ff057c6670ec43d8e24e"
+
+[[projects]]
   name = "github.com/go-stack/stack"
   packages = ["."]
   revision = "2fee6af1a9795aafbe0253a0cfbdf668e1fb8a9a"
@@ -38,6 +50,12 @@
   revision = "83c6a9932646f83e3267f353373d47347b6036b2"
 
 [[projects]]
+  branch = "go1"
+  name = "github.com/rwcarlsen/goexif"
+  packages = ["exif","tiff"]
+  revision = "9e8deecbddbd4989a3e8d003684b783412b41e7a"
+
+[[projects]]
   branch = "master"
   name = "github.com/xdg/scram"
   packages = ["."]
@@ -63,6 +81,12 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/image"
+  packages = ["bmp","ccitt","tiff","tiff/lzw"]
+  revision = "9130b4cfad522142c86367afe5e34ce811a85a4b"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sync"
   packages = ["semaphore"]
   revision = "cd5d95a43a6e21273425c7ae415d3df9ea832eeb"
@@ -82,6 +106,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "85fac22c90b64946d6d8149ccd0318181db661ad730deb2c2343841d48fff2d9"
+  inputs-digest = "763772557799d0a6760e60e154b431ba963b5684db9b530a03fbcdefe4636cc8"
   solver-name = "gps-cdcl"
   solver-version = 1

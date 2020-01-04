@@ -22,6 +22,7 @@ const errLogImageUploadError = "Image Upload Error."
 const errLogImageValidationError = "Image Validation Error."
 const errLogImageSavingError = "Image Saving Error."
 const errLogMissingField = "Missing Field."
+const errLogIoError = "IO Error."
 
 const errCannotDecode = "Invalid JSON object."
 const errInternalError = "Processing request failed because of an internal error"

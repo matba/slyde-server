@@ -20,9 +20,8 @@ type User struct {
 // ImageInfo keeps information about an uploaded image
 type ImageInfo struct {
 	ID         string
-	Width      int
-	Height     int
-	Size       int
+	Width      uint
+	Height     uint
 	UploadDate time.Time
 	Name       string
 }

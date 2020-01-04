@@ -5,7 +5,6 @@ import (
 )
 
 type redisCache struct {
-	cache redis.Conn
 }
 
 func newRedisCache() *redisCache {
@@ -13,24 +12,33 @@ func newRedisCache() *redisCache {
 	return &c
 }
 
-func (c *redisCache) initialize() error {
+func (c *redisCache) createConnection() (redis.Conn, error) {
 	// Initialize the redis connection to a redis instance running on your local machine
 	conn, err := redis.DialURL("redis://localhost")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Assign the connection to the package level `cache` variable
-	c.cache = conn
-	return nil
+	return conn, nil
 }
 
 func (c *redisCache) AddKeyValue(key string, value string, timeout int) error {
-	_, err := c.cache.Do("SETEX", key, timeout, value)
+	con, err := c.createConnection()
+	if err != nil {
+		return err
+	}
+	_, err = con.Do("SETEX", key, timeout, value)
+	con.Close()
 	return err
 }
 
 func (c *redisCache) GetKeyValue(key string) (string, error) {
-	response, err := c.cache.Do("GET", key)
+	con, err := c.createConnection()
+	if err != nil {
+		return "", err
+	}
+	response, err := con.Do("GET", key)
+	con.Close()
 	if err != nil {
 		return "", err
 	}
@@ -43,6 +51,11 @@ func (c *redisCache) GetKeyValue(key string) (string, error) {
 }
 
 func (c *redisCache) DeleteKey(key string) error {
-	_, err := c.cache.Do("DEL", key)
+	con, err := c.createConnection()
+	if err != nil {
+		return err
+	}
+	_, err = con.Do("DEL", key)
+	con.Close()
 	return err
 }

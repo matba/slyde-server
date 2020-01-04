@@ -7,11 +7,14 @@ import (
 	"image"
 	"image/jpeg"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
+	"github.com/edwvee/exiffix"
 	"github.com/google/uuid"
 	"github.com/matba/slyde-server/internals/db"
 	"github.com/nfnt/resize"
@@ -20,6 +23,7 @@ import (
 
 const imageUploadService = "IMAGE_UPLOAD"
 const imageDeleteService = "IMAGE_DELETE"
+const imageGetService = "IMAGE_GET"
 
 // HandleImage handles API calls for images
 func HandleImage(w http.ResponseWriter, r *http.Request) {
@@ -42,9 +46,9 @@ func handleImageGet(w http.ResponseWriter, r *http.Request) {
 	if email == "" {
 		return
 	}
-	user, err := GetUserByEmail(w, email, imageUploadService)
+	user, err := GetUserByEmail(w, email, imageGetService)
 	if err != nil {
-		log.Printf(errLogTemplate, errLogDb, imageUploadService, email, err.Error())
+		log.Printf(errLogTemplate, errLogDb, imageGetService, email, err.Error())
 		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
 		return
 	}
@@ -60,7 +64,72 @@ func handleImageGet(w http.ResponseWriter, r *http.Request) {
 		for _, img := range user.Images {
 			if img.ID == id {
 				fp := getUserImagePath(user.ID, id, isThumbnail)
-				http.ServeFile(w, r, fp)
+
+				imgLength := img.Width
+				if img.Width < img.Height {
+					imgLength = img.Height
+				}
+				lengthStr := r.FormValue("width")
+
+				if len(lengthStr) > 0 {
+					log.Printf("Width of %q is provided.", lengthStr)
+				}
+
+				length, err := strconv.Atoi(lengthStr)
+
+				if err == nil && !isThumbnail {
+					lengthu := uint(length)
+					log.Printf("Checking if resize is required for image %q and requested width %q.", img.Name, lengthStr)
+					if float32(lengthu) < float32(imgLength)*0.9 {
+						log.Printf("The image %q needs to resized to match requested width %q.", img.Name, lengthStr)
+						resizeRatio := float32(lengthu) * 10 / float32(imgLength)
+
+						resizeRatioTenth := uint(math.Round(float64(resizeRatio)))
+
+						if resizeRatioTenth < 1 {
+							resizeRatioTenth = 1
+						}
+
+						fpr := getUserResizedImagePath(user.ID, id, resizeRatioTenth)
+
+						if _, err := os.Stat(fpr); os.IsNotExist(err) {
+							newWidth := uint(float32(img.Width) * (float32(resizeRatioTenth) / 10.0))
+							newHeight := uint(float32(img.Height) * (float32(resizeRatioTenth) / 10.0))
+
+							log.Printf("Resizing image %q for serving", img.Name)
+
+							imgfile, _ := os.Open(fp)
+							defer imgfile.Close()
+
+							imgObj, _, err := image.Decode(imgfile)
+							if err != nil {
+								log.Printf(errLogTemplate, errLogImageValidationError, imageGetService, email, err.Error())
+								WriteErrorOnResponse(errUnsupportedImage, &w, http.StatusInternalServerError)
+								return
+							}
+							resizedImage := resize.Resize(newWidth, newHeight, imgObj, resize.Lanczos3)
+
+							file, err := os.Create(fpr)
+							if err != nil {
+								log.Printf(errLogTemplate, errLogIoError, imageGetService, email, err.Error())
+								WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
+								return
+							}
+							err = jpeg.Encode(file, resizedImage, &jpeg.Options{Quality: 75})
+							if err != nil {
+								log.Printf(errLogTemplate, errLogIoError, imageGetService, email, err.Error())
+								WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
+								return
+							}
+						}
+						http.ServeFile(w, r, fpr)
+
+					} else {
+						http.ServeFile(w, r, fp)
+					}
+				} else {
+					http.ServeFile(w, r, fp)
+				}
 				return
 			}
 		}
@@ -74,8 +143,10 @@ func returnUserImages(user *db.User, w *http.ResponseWriter, r *http.Request) {
 	imList := []UserImage{}
 	for _, img := range user.Images {
 		imList = append(imList, UserImage{
-			ID:   img.ID,
-			Name: img.Name,
+			ID:     img.ID,
+			Name:   img.Name,
+			Width:  img.Width,
+			Height: img.Height,
 		})
 	}
 
@@ -132,7 +203,7 @@ func handleImagePost(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
 
 	var uploadedImage image.Image
-	uploadedImage, err = jpeg.Decode(file)
+	uploadedImage, _, err = exiffix.Decode(file)
 	if err != nil {
 		log.Printf(errLogTemplate, errLogImageValidationError, imageUploadService, email, err.Error())
 		WriteErrorOnResponse(errUnsupportedImage, &w, http.StatusInternalServerError)
@@ -155,21 +226,17 @@ func handleImagePost(w http.ResponseWriter, r *http.Request) {
 	// Generate a UUID for the user
 	id, _ := uuid.NewUUID()
 	imageUUID := id.String()
-	err = saveImage(uploadedImage, user.ID, imageUUID, true)
-	if err != nil {
-		log.Printf(errLogTemplate, errLogImageSavingError, imageUploadService, email, err.Error())
-		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
-		return
-	}
-	// save the thumbnail
-	err = saveImage(uploadedImage, user.ID, imageUUID, false)
-	if err != nil {
-		log.Printf(errLogTemplate, errLogImageSavingError, imageUploadService, email, err.Error())
-		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
-		return
-	}
+
 	// save the image
-	err = saveImage(uploadedImage, user.ID, imageUUID, true)
+	imgW, imgH, err := saveImage(uploadedImage, user.ID, imageUUID, false)
+	if err != nil {
+		log.Printf(errLogTemplate, errLogImageSavingError, imageUploadService, email, err.Error())
+		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
+		return
+	}
+
+	// save the thumbnail
+	_, _, err = saveImage(uploadedImage, user.ID, imageUUID, true)
 	if err != nil {
 		log.Printf(errLogTemplate, errLogImageSavingError, imageUploadService, email, err.Error())
 		WriteErrorOnResponse(errInternalError, &w, http.StatusInternalServerError)
@@ -191,9 +258,8 @@ func handleImagePost(w http.ResponseWriter, r *http.Request) {
 		{"$push", bson.D{
 			{"images", db.ImageInfo{
 				ID:         imageUUID,
-				Width:      width,
-				Height:     height,
-				Size:       0,
+				Width:      imgW,
+				Height:     imgH,
 				UploadDate: time.Now(),
 				Name:       fileName,
 			}},
@@ -207,8 +273,10 @@ func handleImagePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newImageJSON := UserImage{
-		ID:   imageUUID,
-		Name: fileName,
+		ID:     imageUUID,
+		Name:   fileName,
+		Width:  imgW,
+		Height: imgH,
 	}
 
 	js, _ := json.Marshal(newImageJSON)
@@ -291,7 +359,7 @@ func handleImageDel(w http.ResponseWriter, r *http.Request) {
 	w.Write(js)
 }
 
-func saveImage(image image.Image, userID string, imageUUID string, isThumbnail bool) error {
+func saveImage(image image.Image, userID string, imageUUID string, isThumbnail bool) (uint, uint, error) {
 	width := uint(image.Bounds().Dx())
 	height := uint(image.Bounds().Dy())
 
@@ -304,13 +372,13 @@ func saveImage(image image.Image, userID string, imageUUID string, isThumbnail b
 
 	file, err := os.Create(getUserImagePath(userID, imageUUID, isThumbnail))
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	err = jpeg.Encode(file, resizedImage, nil)
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
-	return nil
+	return tWidth, tHeigth, nil
 }
 
 func getUserImagePath(userID string, imageUUID string, isThumbnail bool) string {
@@ -319,6 +387,10 @@ func getUserImagePath(userID string, imageUUID string, isThumbnail bool) string 
 		directory = thumbnailsDirectory
 	}
 	return path.Join(getCurUserDirectory(userID)+directory, imageUUID+jpegExtension)
+}
+
+func getUserResizedImagePath(userID string, imageUUID string, resizeTenth uint) string {
+	return path.Join(getCurUserDirectory(userID)+imagesDiretory, imageUUID+"-"+strconv.Itoa(int(resizeTenth))+jpegExtension)
 }
 
 func getImageResizeSize(width uint, height uint, isThumbnail bool) (uint, uint) {
